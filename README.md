@@ -35,6 +35,7 @@ To make your Server PC act like a true, silent host, we will use **PM2**. This e
    ```bash
    cd backend
    npm install
+   npx prisma db push
    cd ..
    ```
 4. **Setup PM2 Auto-Boot:** Open **PowerShell as Administrator** and run:
@@ -52,38 +53,37 @@ To make your Server PC act like a true, silent host, we will use **PM2**. This e
 
 ---
 
-## Phase 3: Cloudflare Zero Trust Tunnel
+## Phase 3: ngrok Free Permanent Tunnel (Server PC)
 
-*To keep your Server PC completely isolated, you will do the dashboard steps on your Main PC!*
+*Perform these steps on your Server PC. ngrok gives you one free permanent URL (e.g. `abc-xyz.ngrok-free.app`) that never expires and never changes as long as your free account exists — no domain purchase needed!*
 
-1. **On your Main PC**, log into your free Cloudflare account (ensure your custom domain's DNS is managed by Cloudflare).
-2. Go to `one.dash.cloudflare.com` (Zero Trust Dashboard).
-3. Navigate to **Networks > Tunnels** and click **Create a tunnel**.
-4. Select **Cloudflared** and name it (e.g., "StreamServer").
-5. Under "Choose your environment", select **Windows**.
-6. Cloudflare will give you a single command box with a secret token (it looks like `cloudflared.exe service install eyJh...`). Copy this command.
-7. **On your Server PC**, open **PowerShell as Administrator** and paste that exact command. This silently installs the tunnel as a background service without you ever needing to log into an email or browser on the Server PC!
-8. **Back on your Main PC**, the dashboard will show a "Connected" status. Click Next.
-9. In the **Public Hostnames** tab:
-   - **Subdomain:** `api`
-   - **Domain:** Select your domain (e.g., `yourdomain.com`).
-   - **Service Type:** `HTTP`
-   - **URL:** `localhost:5000`
-10. Click **Save hostname**.
+1. **Create a free ngrok account** on your Main PC at [ngrok.com](https://ngrok.com).
+2. After signing in, go to **Cloud Edge > Domains** in the ngrok dashboard and click **New Domain**. Copy the free permanent domain it gives you (e.g. `abc-xyz.ngrok-free.app`).
+3. Go to your ngrok dashboard **Home** page and copy your **Authtoken**.
+4. **On your Server PC**, download ngrok for Windows from [ngrok.com/download](https://ngrok.com/download) and extract the `ngrok.exe` file somewhere (e.g. `C:\ngrok\ngrok.exe`).
+5. Open **PowerShell** in that folder and run your authtoken:
+   ```bash
+   .\ngrok.exe config add-authtoken YOUR_AUTHTOKEN_HERE
+   ```
+6. **Start ngrok with PM2 so it auto-boots with your PC:**
+   ```bash
+   pm2 start "C:\ngrok\ngrok.exe http --domain=abc-xyz.ngrok-free.app 5000" --name "StreamTunnel"
+   pm2 save
+   ```
 
-*(Your backend API is now permanently accessible at `https://api.yourdomain.com` and automatically boots on startup!)*
+*(Your backend is now permanently accessible at `https://abc-xyz.ngrok-free.app` and auto-starts on every reboot!)*
 
 ---
 
 ## Phase 4: Linking it Together
 
-*Perform these steps back on your Main PC.*
+*Perform these steps on your Main PC.*
 
 1. Go to your Vercel Dashboard and open your project.
 2. Navigate to **Settings > Environment Variables**.
 3. Add a new variable:
    - **Key:** `VITE_API_URL`
-   - **Value:** `https://api.yourdomain.com` *(The exact Cloudflare tunnel URL you created in Phase 3)*
+   - **Value:** `https://abc-xyz.ngrok-free.app` *(your exact free ngrok domain from Phase 3)*
 4. Go to the **Deployments** tab and redeploy your project for the variable to take effect.
 
 ---
