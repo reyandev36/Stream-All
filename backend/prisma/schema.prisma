@@ -1,0 +1,60 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  isAdmin   Boolean  @default(false)
+  progress  Progress[]
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  media     Media[]
+}
+
+model Media {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  coverImage  String?
+  items       MediaItem[]
+  createdAt   DateTime @default(now())
+}
+
+model MediaItem {
+  id          String   @id @default(uuid())
+  mediaId     String
+  media       Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  title       String
+  type        String   
+  videoPath   String?  
+  subtitlePath String? 
+  textContent String?  
+  order       Int      @default(0) 
+  progress    Progress[]
+}
+
+model Progress {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItemId String
+  mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+  timestamp   Float    @default(0)
+  completed   Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, mediaItemId])
+}

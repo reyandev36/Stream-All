@@ -1,0 +1,11 @@
+{
+  "name": "stream-all",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "concurrently \"npm run start --prefix backend\" \"npm run dev --prefix frontend\"",
+    "start:prod": "node backend/index.js"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
