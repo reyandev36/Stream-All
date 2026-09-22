@@ -67,7 +67,7 @@ To make your Server PC act like a true, silent host, we will use **PM2**. This e
 
 **Step 3 — Create the ngrok config file**
 
-Create a file at `C:\ngrok\ngrok.yml` with this content:
+Create a file at `C:\ngrok\ngrok.yml` using **Notepad** with this content (use **spaces, NOT tabs** for indentation — 2 spaces per level):
 ```yaml
 version: "3"
 agent:
@@ -79,31 +79,38 @@ tunnels:
     domain: your-free-domain.ngrok-free.dev
 ```
 
-**Step 4 — Create the batch startup file**
+> **Important:** When saving in Notepad, change "Save as type" to **All Files** so it doesn't save as `ngrok.yml.txt`.
 
-Create a file at `C:\ngrok\start-tunnel.bat` with this content:
-```bat
-@echo off
-C:\ngrok\ngrok.exe start stream
-```
+**Step 4 — Copy the tunnel starter script**
 
-**Step 5 — Register both with PM2**
+Copy the `tunnel.js` file from this project's root folder to `C:\ngrok\tunnel.js`. This file tells PM2 how to start ngrok properly.
+
+> **Important:** Do NOT use a `.bat` file with PM2 — PM2 tries to run `.bat` files as Node.js and it will crash. The `tunnel.js` wrapper script is the correct approach.
+
+**Step 5 — Start the tunnel with PM2**
 
 Open PowerShell (anywhere) and run:
 ```powershell
-pm2 start "C:\ngrok\start-tunnel.bat" --name "StreamTunnel" --interpreter cmd
-pm2 save
+pm2 start "C:\ngrok\tunnel.js" --name "StreamTunnel"
 ```
 
-> **Important:** Always use `--interpreter cmd` when running `.bat` files with PM2, otherwise PM2 tries to run it as a Node.js file and it will error.
-
-**Step 6 — Verify both processes are online:**
+Wait 5 seconds, then verify both processes are online:
 ```powershell
 pm2 status
 ```
+
 You should see both `StreamServer` and `StreamTunnel` showing `online`. ✅
 
-*(Your backend is now permanently accessible at `https://your-free-domain.ngrok-free.dev` and auto-starts on every reboot!)*
+**Step 6 — Save so it auto-starts on reboot:**
+```powershell
+pm2 save
+```
+
+**Step 7 — Test it works** by opening this URL in any browser:
+```
+https://your-free-domain.ngrok-free.dev/api/status
+```
+If you see `{"setupNeeded":true}` or `{"setupNeeded":false}`, everything is connected! 🎉
 
 ---
 
