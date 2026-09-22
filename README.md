@@ -55,23 +55,55 @@ To make your Server PC act like a true, silent host, we will use **PM2**. This e
 
 ## Phase 3: ngrok Free Permanent Tunnel (Server PC)
 
-*Perform these steps on your Server PC. ngrok gives you one free permanent URL (e.g. `abc-xyz.ngrok-free.app`) that never expires and never changes as long as your free account exists — no domain purchase needed!*
+*ngrok gives you one free permanent URL (e.g. `wrongly-shine-embody.ngrok-free.dev`) that never expires — no domain purchase needed!*
 
-1. **Create a free ngrok account** on your Main PC at [ngrok.com](https://ngrok.com).
-2. After signing in, go to **Cloud Edge > Domains** in the ngrok dashboard and click **New Domain**. Copy the free permanent domain it gives you (e.g. `abc-xyz.ngrok-free.app`).
-3. Go to your ngrok dashboard **Home** page and copy your **Authtoken**.
-4. **On your Server PC**, download ngrok for Windows from [ngrok.com/download](https://ngrok.com/download) and extract the `ngrok.exe` file somewhere (e.g. `C:\ngrok\ngrok.exe`).
-5. Open **PowerShell** in that folder and run your authtoken:
-   ```bash
-   .\ngrok.exe config add-authtoken YOUR_AUTHTOKEN_HERE
-   ```
-6. **Start ngrok with PM2 so it auto-boots with your PC:**
-   ```bash
-   pm2 start "C:\ngrok\ngrok.exe http --domain=abc-xyz.ngrok-free.app 5000" --name "StreamTunnel"
-   pm2 save
-   ```
+**Step 1 — Create a free ngrok account** on your Main PC at [ngrok.com](https://ngrok.com).
+- After signing in, go to **Cloud Edge > Domains** and note your free permanent domain.
+- Go to **Your Authtoken** in the left sidebar and copy your token.
 
-*(Your backend is now permanently accessible at `https://abc-xyz.ngrok-free.app` and auto-starts on every reboot!)*
+**Step 2 — Download ngrok on your Server PC**
+- Download ngrok for Windows from [ngrok.com/download](https://ngrok.com/download).
+- Extract the `ngrok.exe` file to `C:\ngrok\`.
+
+**Step 3 — Create the ngrok config file**
+
+Create a file at `C:\ngrok\ngrok.yml` with this content:
+```yaml
+version: "3"
+agent:
+  authtoken: YOUR_AUTHTOKEN_HERE
+tunnels:
+  stream:
+    proto: http
+    addr: 5000
+    domain: your-free-domain.ngrok-free.dev
+```
+
+**Step 4 — Create the batch startup file**
+
+Create a file at `C:\ngrok\start-tunnel.bat` with this content:
+```bat
+@echo off
+C:\ngrok\ngrok.exe start stream
+```
+
+**Step 5 — Register both with PM2**
+
+Open PowerShell (anywhere) and run:
+```powershell
+pm2 start "C:\ngrok\start-tunnel.bat" --name "StreamTunnel" --interpreter cmd
+pm2 save
+```
+
+> **Important:** Always use `--interpreter cmd` when running `.bat` files with PM2, otherwise PM2 tries to run it as a Node.js file and it will error.
+
+**Step 6 — Verify both processes are online:**
+```powershell
+pm2 status
+```
+You should see both `StreamServer` and `StreamTunnel` showing `online`. ✅
+
+*(Your backend is now permanently accessible at `https://your-free-domain.ngrok-free.dev` and auto-starts on every reboot!)*
 
 ---
 
