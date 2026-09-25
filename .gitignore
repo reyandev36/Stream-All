@@ -12,7 +12,8 @@ Data/
 # Build outputs
 frontend/dist/
 
-# SQLite Database (optional, but good to ignore so you don't overwrite your server's DB later)
-# If you want to push the empty DB, leave this commented out for now.
-# backend/dev.db
-# backend/dev.db-journal
+# SQLite Database
+*.db
+*.db-journal
+backend/prisma/*.db
+backend/prisma/*.db-journal
