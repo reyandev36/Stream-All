@@ -53,64 +53,26 @@ To make your Server PC act like a true, silent host, we will use **PM2**. This e
 
 ---
 
-## Phase 3: ngrok Free Permanent Tunnel (Server PC)
+## Phase 3: Cloudflare Zero Trust Tunnel
 
-*ngrok gives you one free permanent URL (e.g. `wrongly-shine-embody.ngrok-free.dev`) that never expires — no domain purchase needed!*
+*To keep your Server PC completely isolated, you will do the dashboard steps on your Main PC! Cloudflare is 100% free, has no bandwidth limits, and streams video perfectly.*
 
-**Step 1 — Create a free ngrok account** on your Main PC at [ngrok.com](https://ngrok.com).
-- After signing in, go to **Cloud Edge > Domains** and note your free permanent domain.
-- Go to **Your Authtoken** in the left sidebar and copy your token.
+1. **On your Main PC**, log into your free Cloudflare account (ensure your custom domain's DNS is managed by Cloudflare).
+2. Go to `one.dash.cloudflare.com` (Zero Trust Dashboard).
+3. Navigate to **Networks > Tunnels** and click **Create a tunnel**.
+4. Select **Cloudflared** and name it (e.g., "StreamServer").
+5. Under "Choose your environment", select **Windows**.
+6. Cloudflare will give you a single command box with a secret token (it looks like `cloudflared.exe service install eyJh...`). Copy this command.
+7. **On your Server PC**, open **PowerShell as Administrator** and paste that exact command. This silently installs the tunnel as a background service without you ever needing to log into an email or browser on the Server PC!
+8. **Back on your Main PC**, the dashboard will show a "Connected" status. Click Next.
+9. In the **Public Hostnames** tab:
+   - **Subdomain:** `api`
+   - **Domain:** Select your domain (e.g., `yourdomain.com`).
+   - **Service Type:** `HTTP`
+   - **URL:** `localhost:5000`
+10. Click **Save hostname**.
 
-**Step 2 — Download ngrok on your Server PC**
-- Download ngrok for Windows from [ngrok.com/download](https://ngrok.com/download).
-- Extract the `ngrok.exe` file to `C:\ngrok\`.
-
-**Step 3 — Create the ngrok config file**
-
-Create a file at `C:\ngrok\ngrok.yml` using **Notepad** with this content (use **spaces, NOT tabs** for indentation — 2 spaces per level):
-```yaml
-version: "3"
-agent:
-  authtoken: YOUR_AUTHTOKEN_HERE
-tunnels:
-  stream:
-    proto: http
-    addr: 5000
-    domain: your-free-domain.ngrok-free.dev
-```
-
-> **Important:** When saving in Notepad, change "Save as type" to **All Files** so it doesn't save as `ngrok.yml.txt`.
-
-**Step 4 — Copy the tunnel starter script**
-
-Copy the `tunnel.js` file from this project's root folder to `C:\ngrok\tunnel.js`. This file tells PM2 how to start ngrok properly.
-
-> **Important:** Do NOT use a `.bat` file with PM2 — PM2 tries to run `.bat` files as Node.js and it will crash. The `tunnel.js` wrapper script is the correct approach.
-
-**Step 5 — Start the tunnel with PM2**
-
-Open PowerShell (anywhere) and run:
-```powershell
-pm2 start "C:\ngrok\tunnel.js" --name "StreamTunnel"
-```
-
-Wait 5 seconds, then verify both processes are online:
-```powershell
-pm2 status
-```
-
-You should see both `StreamServer` and `StreamTunnel` showing `online`. ✅
-
-**Step 6 — Save so it auto-starts on reboot:**
-```powershell
-pm2 save
-```
-
-**Step 7 — Test it works** by opening this URL in any browser:
-```
-https://your-free-domain.ngrok-free.dev/api/status
-```
-If you see `{"setupNeeded":true}` or `{"setupNeeded":false}`, everything is connected! 🎉
+*(Your backend API is now permanently accessible at `https://api.yourdomain.com` and automatically boots on startup!)*
 
 ---
 
