@@ -80,7 +80,7 @@ export default function PlayerPage() {
         >
           {/* Stream video via backend Range endpoint */}
           <source 
-            src={`${import.meta.env.VITE_API_URL || ''}/api/stream/${id}`} 
+            src={`${import.meta.env.VITE_API_URL || ''}/api/stream/${id}?token=${localStorage.getItem('token')}`} 
             type="video/mp4" 
           />
           {/* Subtitles support */}
@@ -88,7 +88,7 @@ export default function PlayerPage() {
             label="English" 
             kind="subtitles" 
             srcLang="en" 
-            src={`${import.meta.env.VITE_API_URL || ''}/api/subtitles/${id}`} 
+            src={`${import.meta.env.VITE_API_URL || ''}/api/subtitles/${id}?token=${localStorage.getItem('token')}`} 
             default 
           />
           Your browser does not support the video tag.
