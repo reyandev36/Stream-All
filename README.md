@@ -105,7 +105,7 @@ Because video files are massive, you should upload them from the Server PC itsel
 6. **Upload Video:** Select the massive video file (`.mp4`, `.mkv`) and an optional subtitle file (`.srt`, `.vtt`) from your hard drive, and click Upload. Because you are on the host network, it will process almost instantly directly to the Server PC's hard drive!
 
 ### Creating Viewer Accounts
-Only users you explicitly authorize can watch your content.
+Only users you explicitly authorize can watch your content...
 1. On the Admin Upload page, scroll down to the **Create Viewer Account** section.
 2. Enter a username and password and click Create.
 3. You can view, manage, and delete these accounts in the "Existing Viewer Accounts" list just below it.
