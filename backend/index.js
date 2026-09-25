@@ -150,7 +150,7 @@ app.get('/api/media/:id', authenticateToken, async (req, res) => {
 // Create Media (Admin)
 app.post('/api/media', authenticateToken, isAdmin, upload.single('coverImage'), async (req, res) => {
   const { title, description, categoryId } = req.body;
-  const coverImage = req.file ? req.file.path.replace(/\\/g, '/') : null;
+  const coverImage = req.file ? path.relative(path.join(__dirname, '..'), req.file.path).replace(/\\/g, '/') : null;
   const media = await prisma.media.create({
     data: { title, description, categoryId, coverImage }
   });
@@ -303,7 +303,7 @@ app.get('/api/status', async (req, res) => {
 });
 
 // Serve Uploaded Media (like cover images)
-app.use('/Data', express.static(path.join(__dirname, 'Data')));
+app.use('/Data', express.static(path.join(__dirname, '..', 'Data')));
 
 
 // --- BULK IMPORT SYSTEM ---
