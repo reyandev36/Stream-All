@@ -68,7 +68,7 @@ export default function Dashboard() {
           <Link to={`/media/${media.id}`} key={media.id} className="block group">
             <div className="bg-gray-800 rounded-lg overflow-hidden aspect-[2/3] relative">
               {media.coverImage ? (
-                <img src={\/\} alt={media.title} className="w-full h-full object-cover" />
+                <img src={`${import.meta.env.VITE_API_URL || ''}/${media.coverImage}`} alt={media.title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gray-700 text-gray-500">No Image</div>
               )}
