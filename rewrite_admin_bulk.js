@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+const fs = require('fs');
+
+const code = `import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -26,20 +28,16 @@ export default function AdminUpload() {
   const [bulkCatId, setBulkCatId] = useState('');
   const [isScanning, setIsScanning] = useState(false);
 
-  // Edit Episodes States
-  const [editMediaId, setEditMediaId] = useState('');
-  const [editItemsList, setEditItemsList] = useState([]);
-
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
-    const usersRes = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/users`);
+    const usersRes = await axios.get(\`\${import.meta.env.VITE_API_URL || ''}/api/users\`);
     setUsersList(usersRes.data);
-    const catRes = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/categories`);
+    const catRes = await axios.get(\`\${import.meta.env.VITE_API_URL || ''}/api/categories\`);
     setCategories(catRes.data);
-    const mediaRes = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/media`);
+    const mediaRes = await axios.get(\`\${import.meta.env.VITE_API_URL || ''}/api/media\`);
     setMediaList(mediaRes.data);
     if (catRes.data.length > 0) {
       setSelectedCatId(catRes.data[0].id);
@@ -47,26 +45,10 @@ export default function AdminUpload() {
     }
   };
 
-  const fetchEditItems = async (mediaId) => {
-    if (!mediaId) return setEditItemsList([]);
-    try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/media/${mediaId}`);
-      setEditItemsList(res.data.items || []);
-    } catch (err) {
-      alert("Failed to load episodes.");
-    }
-  };
-
-  // When the selected course to edit changes, fetch its episodes
-  useEffect(() => {
-    fetchEditItems(editMediaId);
-  }, [editMediaId]);
-
-
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/users`, {
+      await axios.post(\`\${import.meta.env.VITE_API_URL || ''}/api/users\`, {
         username: newUsername, password: newPassword
       });
       alert('Viewer Account Created!');
@@ -78,7 +60,7 @@ export default function AdminUpload() {
   const handleDeleteUser = async (id) => {
     if(!window.confirm("Are you sure you want to delete this user?")) return;
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL || ''}/api/users/${id}`);
+      await axios.delete(\`\${import.meta.env.VITE_API_URL || ''}/api/users/\${id}\`);
       fetchData();
     } catch(err) { alert('Failed to delete user'); }
   };
@@ -92,7 +74,7 @@ export default function AdminUpload() {
     if (coverImage) formData.append('coverImage', coverImage);
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/media`, formData, {
+      await axios.post(\`\${import.meta.env.VITE_API_URL || ''}/api/media\`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       alert('Media Created!');
@@ -104,9 +86,8 @@ export default function AdminUpload() {
   const handleDeleteMedia = async (id) => {
     if(!window.confirm("Are you sure you want to delete this Course? It will delete all videos inside it!")) return;
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL || ''}/api/media/${id}`);
+      await axios.delete(\`\${import.meta.env.VITE_API_URL || ''}/api/media/\${id}\`);
       fetchData();
-      if (editMediaId === id) setEditMediaId('');
     } catch(err) { alert('Failed to delete course'); }
   };
 
@@ -114,7 +95,7 @@ export default function AdminUpload() {
     if (!folderPath) return alert('Enter a folder path first!');
     setIsScanning(true);
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/scan`, { folderPath });
+      const res = await axios.post(\`\${import.meta.env.VITE_API_URL || ''}/api/scan\`, { folderPath });
       setScannedFiles(res.data);
       if (res.data.length === 0) alert('No videos found in that folder!');
     } catch (err) {
@@ -148,7 +129,7 @@ export default function AdminUpload() {
     }));
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/bulk-import`, {
+      await axios.post(\`\${import.meta.env.VITE_API_URL || ''}/api/bulk-import\`, {
         categoryId: bulkCatId,
         mediaTitle: bulkTitle,
         mediaDescription: bulkDesc,
@@ -162,35 +143,6 @@ export default function AdminUpload() {
       fetchData();
     } catch (err) {
       alert('Failed to bulk import!');
-    }
-  };
-
-  const handleEditItemChange = (index, field, value) => {
-    const updated = [...editItemsList];
-    updated[index][field] = value;
-    setEditItemsList(updated);
-  };
-
-  const handleSaveItemEdit = async (item) => {
-    try {
-      await axios.put(`${import.meta.env.VITE_API_URL || ''}/api/media/${editMediaId}/items/${item.id}`, {
-        title: item.title,
-        textContent: item.textContent,
-        order: item.order
-      });
-      alert('Episode updated!');
-    } catch (err) {
-      alert('Failed to update episode');
-    }
-  };
-
-  const handleDeleteEpisode = async (itemId) => {
-    if(!window.confirm("Delete this specific episode?")) return;
-    try {
-      await axios.delete(`${import.meta.env.VITE_API_URL || ''}/api/media/${editMediaId}/items/${itemId}`);
-      fetchEditItems(editMediaId);
-    } catch (err) {
-      alert('Failed to delete episode');
     }
   };
 
@@ -258,73 +210,9 @@ export default function AdminUpload() {
           )}
         </div>
 
-        {/* Edit Existing Episodes Box */}
-        <div className="bg-gray-800 p-6 rounded-lg md:col-span-2 border border-blue-500">
-          <h2 className="text-xl font-semibold mb-4 text-blue-400">✏️ Edit Existing Episodes</h2>
-          <p className="text-sm text-gray-400 mb-4">Select a course to rename its episodes, change their display order, or edit their text notes.</p>
-          
-          <select 
-            value={editMediaId} onChange={e => setEditMediaId(e.target.value)}
-            className="p-3 bg-gray-700 rounded w-full mb-6 font-bold text-lg"
-          >
-            <option value="">-- Select a Course to Edit --</option>
-            {mediaList.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
-          </select>
-
-          {editMediaId && (
-            <div className="space-y-4">
-              {editItemsList.length === 0 ? (
-                <p className="text-gray-400">No episodes in this course yet.</p>
-              ) : (
-                editItemsList.map((item, index) => (
-                  <div key={item.id} className="bg-gray-700 p-4 rounded flex flex-col md:flex-row gap-4 items-start">
-                    
-                    <div className="flex flex-col gap-2 w-full md:w-24">
-                      <label className="text-xs text-gray-400 uppercase font-bold">Order #</label>
-                      <input 
-                        type="number" 
-                        value={item.order} 
-                        onChange={e => handleEditItemChange(index, 'order', e.target.value)}
-                        className="p-2 bg-gray-900 rounded font-bold text-center w-full"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2 flex-1 w-full">
-                      <label className="text-xs text-gray-400 uppercase font-bold">Episode Title</label>
-                      <input 
-                        type="text" 
-                        value={item.title} 
-                        onChange={e => handleEditItemChange(index, 'title', e.target.value)}
-                        className="p-2 bg-gray-900 rounded w-full"
-                      />
-                      {item.type === 'TEXT' && (
-                        <>
-                          <label className="text-xs text-gray-400 uppercase font-bold mt-2">Text Content</label>
-                          <textarea 
-                            value={item.textContent || ''} 
-                            onChange={e => handleEditItemChange(index, 'textContent', e.target.value)}
-                            className="p-2 bg-gray-900 rounded w-full min-h-[100px]"
-                          />
-                        </>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col gap-2 w-full md:w-auto h-full justify-end mt-6 md:mt-0">
-                      <button onClick={() => handleSaveItemEdit(item)} className="bg-blue-600 px-4 py-2 rounded font-bold hover:bg-blue-700">Save</button>
-                      <button onClick={() => handleDeleteEpisode(item.id)} className="bg-red-600 px-4 py-2 rounded font-bold hover:bg-red-700">Delete</button>
-                    </div>
-
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-
-
         {/* Create Media Box */}
         <div className="bg-gray-800 p-6 rounded-lg opacity-75 hover:opacity-100 transition-opacity">
-          <h2 className="text-xl font-semibold mb-4">Manual Create (Empty Course)</h2>
+          <h2 className="text-xl font-semibold mb-4">Manual Create (Single Course)</h2>
           <form onSubmit={handleCreateMedia} className="flex flex-col gap-4">
             <select 
               value={selectedCatId} onChange={e => setSelectedCatId(e.target.value)}
@@ -357,7 +245,7 @@ export default function AdminUpload() {
                   {mediaList.map(m => (
                     <li key={m.id} className="flex justify-between items-center py-2 border-b border-gray-600 last:border-0">
                       <span>{m.title}</span>
-                      <button type="button" onClick={() => handleDeleteMedia(m.id)} className="text-red-400 hover:text-red-300 text-sm font-semibold">Delete Course</button>
+                      <button type="button" onClick={() => handleDeleteMedia(m.id)} className="text-red-400 hover:text-red-300 text-sm font-semibold">Delete</button>
                     </li>
                   ))}
                 </ul>
@@ -404,3 +292,6 @@ export default function AdminUpload() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('frontend/src/pages/AdminUpload.jsx', code);

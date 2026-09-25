@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+const fs = require('fs');
+
+const code = `import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,11 +37,11 @@ export default function AdminUpload() {
   }, []);
 
   const fetchData = async () => {
-    const usersRes = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/users`);
+    const usersRes = await axios.get(\`\${import.meta.env.VITE_API_URL || ''}/api/users\`);
     setUsersList(usersRes.data);
-    const catRes = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/categories`);
+    const catRes = await axios.get(\`\${import.meta.env.VITE_API_URL || ''}/api/categories\`);
     setCategories(catRes.data);
-    const mediaRes = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/media`);
+    const mediaRes = await axios.get(\`\${import.meta.env.VITE_API_URL || ''}/api/media\`);
     setMediaList(mediaRes.data);
     if (catRes.data.length > 0) {
       setSelectedCatId(catRes.data[0].id);
@@ -50,7 +52,7 @@ export default function AdminUpload() {
   const fetchEditItems = async (mediaId) => {
     if (!mediaId) return setEditItemsList([]);
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/media/${mediaId}`);
+      const res = await axios.get(\`\${import.meta.env.VITE_API_URL || ''}/api/media/\${mediaId}\`);
       setEditItemsList(res.data.items || []);
     } catch (err) {
       alert("Failed to load episodes.");
@@ -66,7 +68,7 @@ export default function AdminUpload() {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/users`, {
+      await axios.post(\`\${import.meta.env.VITE_API_URL || ''}/api/users\`, {
         username: newUsername, password: newPassword
       });
       alert('Viewer Account Created!');
@@ -78,7 +80,7 @@ export default function AdminUpload() {
   const handleDeleteUser = async (id) => {
     if(!window.confirm("Are you sure you want to delete this user?")) return;
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL || ''}/api/users/${id}`);
+      await axios.delete(\`\${import.meta.env.VITE_API_URL || ''}/api/users/\${id}\`);
       fetchData();
     } catch(err) { alert('Failed to delete user'); }
   };
@@ -92,7 +94,7 @@ export default function AdminUpload() {
     if (coverImage) formData.append('coverImage', coverImage);
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/media`, formData, {
+      await axios.post(\`\${import.meta.env.VITE_API_URL || ''}/api/media\`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       alert('Media Created!');
@@ -104,7 +106,7 @@ export default function AdminUpload() {
   const handleDeleteMedia = async (id) => {
     if(!window.confirm("Are you sure you want to delete this Course? It will delete all videos inside it!")) return;
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL || ''}/api/media/${id}`);
+      await axios.delete(\`\${import.meta.env.VITE_API_URL || ''}/api/media/\${id}\`);
       fetchData();
       if (editMediaId === id) setEditMediaId('');
     } catch(err) { alert('Failed to delete course'); }
@@ -114,7 +116,7 @@ export default function AdminUpload() {
     if (!folderPath) return alert('Enter a folder path first!');
     setIsScanning(true);
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/scan`, { folderPath });
+      const res = await axios.post(\`\${import.meta.env.VITE_API_URL || ''}/api/scan\`, { folderPath });
       setScannedFiles(res.data);
       if (res.data.length === 0) alert('No videos found in that folder!');
     } catch (err) {
@@ -148,7 +150,7 @@ export default function AdminUpload() {
     }));
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/bulk-import`, {
+      await axios.post(\`\${import.meta.env.VITE_API_URL || ''}/api/bulk-import\`, {
         categoryId: bulkCatId,
         mediaTitle: bulkTitle,
         mediaDescription: bulkDesc,
@@ -173,7 +175,7 @@ export default function AdminUpload() {
 
   const handleSaveItemEdit = async (item) => {
     try {
-      await axios.put(`${import.meta.env.VITE_API_URL || ''}/api/media/${editMediaId}/items/${item.id}`, {
+      await axios.put(\`\${import.meta.env.VITE_API_URL || ''}/api/media/\${editMediaId}/items/\${item.id}\`, {
         title: item.title,
         textContent: item.textContent,
         order: item.order
@@ -187,7 +189,7 @@ export default function AdminUpload() {
   const handleDeleteEpisode = async (itemId) => {
     if(!window.confirm("Delete this specific episode?")) return;
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL || ''}/api/media/${editMediaId}/items/${itemId}`);
+      await axios.delete(\`\${import.meta.env.VITE_API_URL || ''}/api/media/\${editMediaId}/items/\${itemId}\`);
       fetchEditItems(editMediaId);
     } catch (err) {
       alert('Failed to delete episode');
@@ -209,7 +211,7 @@ export default function AdminUpload() {
           <div className="flex gap-4 mb-6">
             <input 
               type="text" 
-              placeholder="e.g. C:\\Downloads\\My Masterclass Course" 
+              placeholder="e.g. C:\\\\Downloads\\\\My Masterclass Course" 
               className="p-3 bg-gray-700 rounded flex-1 text-lg font-mono" 
               value={folderPath} onChange={e => setFolderPath(e.target.value)}
             />
@@ -404,3 +406,6 @@ export default function AdminUpload() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('frontend/src/pages/AdminUpload.jsx', code);

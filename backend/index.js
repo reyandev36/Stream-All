@@ -148,12 +148,48 @@ app.get('/api/media/:id', authenticateToken, async (req, res) => {
 });
 
 // Create Media (Admin)
-app.post('/api/media', authenticateToken, isAdmin, async (req, res) => {
-  const { title, description, categoryId, coverImage } = req.body;
+app.post('/api/media', authenticateToken, isAdmin, upload.single('coverImage'), async (req, res) => {
+  const { title, description, categoryId } = req.body;
+  const coverImage = req.file ? req.file.path.replace(/\\/g, '/') : null;
   const media = await prisma.media.create({
     data: { title, description, categoryId, coverImage }
   });
   res.json(media);
+});
+
+// Delete Media (Course/Movie)
+app.delete('/api/media/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    await prisma.media.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Deleted successfully' });
+  } catch (e) { res.status(500).send(e.message); }
+});
+
+
+// Edit MediaItem (Episode)
+app.put('/api/media/:mediaId/items/:itemId', authenticateToken, isAdmin, async (req, res) => {
+  const { title, textContent, order } = req.body;
+  try {
+    const item = await prisma.mediaItem.update({
+      where: { id: req.params.itemId },
+      data: { 
+        title, 
+        textContent, 
+        order: parseInt(order) || 0 
+      }
+    });
+    res.json(item);
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
+
+// Delete MediaItem (Episode)
+app.delete('/api/media/:mediaId/items/:itemId', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    await prisma.mediaItem.delete({ where: { id: req.params.itemId } });
+    res.json({ message: 'Deleted successfully' });
+  } catch (e) { res.status(500).send(e.message); }
 });
 
 // Upload Video/Subtitle and Create MediaItem (Admin)
@@ -266,7 +302,103 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+// Serve Uploaded Media (like cover images)
+app.use('/Data', express.static(path.join(__dirname, 'Data')));
+
+
+// --- BULK IMPORT SYSTEM ---
+
+// Helper to recursively read directories
+const getAllVideoFiles = (dirPath, arrayOfFiles) => {
+  const files = fs.readdirSync(dirPath);
+  arrayOfFiles = arrayOfFiles || [];
+  files.forEach(function(file) {
+    const fullPath = path.join(dirPath, file);
+    if (fs.statSync(fullPath).isDirectory()) {
+      arrayOfFiles = getAllVideoFiles(fullPath, arrayOfFiles);
+    } else {
+      if (file.match(/\.(mp4|mkv|webm|avi)$/i)) {
+        arrayOfFiles.push(fullPath);
+      }
+    }
+  });
+  return arrayOfFiles;
+};
+
+// Scan Folder Route
+app.post('/api/scan', authenticateToken, isAdmin, async (req, res) => {
+  const { folderPath } = req.body;
+  if (!fs.existsSync(folderPath)) {
+    return res.status(400).json({ error: 'Folder does not exist on Server PC.' });
+  }
+
+  try {
+    const files = getAllVideoFiles(folderPath, []);
+    
+    // Parse files to guess episode numbers
+    const parsedFiles = files.map(filepath => {
+      const filename = path.basename(filepath);
+      
+      // Look for numbers like 001, E01, S01E01, or just 1
+      let guessedNumber = 0;
+      const numMatch = filename.match(/(?:[eExX]|^|\s|0*|-)(\d{1,4})(?:\D|$)/);
+      if (numMatch) {
+        guessedNumber = parseInt(numMatch[1], 10);
+      }
+      
+      return {
+        filepath: filepath,
+        filename: filename,
+        guessedNumber: guessedNumber,
+        title: filename.replace(/\.[^/.]+$/, "") // remove extension
+      };
+    });
+
+    // Sort by guessed number
+    parsedFiles.sort((a, b) => a.guessedNumber - b.guessedNumber);
+
+    res.json(parsedFiles);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk Import Route
+app.post('/api/bulk-import', authenticateToken, isAdmin, async (req, res) => {
+  const { categoryId, mediaTitle, mediaDescription, items } = req.body;
+  
+  try {
+    // 1. Create the Course/Media
+    const media = await prisma.media.create({
+      data: { 
+        title: mediaTitle, 
+        description: mediaDescription, 
+        categoryId: categoryId 
+      }
+    });
+
+    // 2. Create all the Episodes inside it (using absolute paths!)
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      await prisma.mediaItem.create({
+        data: {
+          mediaId: media.id,
+          title: item.title,
+          type: 'VIDEO',
+          videoPath: item.filepath,
+          order: item.order || i + 1
+        }
+      });
+    }
+
+    res.json({ message: 'Bulk Import Successful!', mediaId: media.id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Serve Frontend (if built)
+
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
