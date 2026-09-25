@@ -18,6 +18,14 @@ export default function AdminUpload() {
   const [coverImage, setCoverImage] = useState(null);
   const [selectedCatId, setSelectedCatId] = useState('');
 
+  // Manual Upload States
+  const [selectedMediaId, setSelectedMediaId] = useState('');
+  const [itemTitle, setItemTitle] = useState('');
+  const [itemType, setItemType] = useState('VIDEO');
+  const [videoFile, setVideoFile] = useState(null);
+  const [subtitleFile, setSubtitleFile] = useState(null);
+  const [textContent, setTextContent] = useState('');
+
   // Bulk Import States
   const [folderPath, setFolderPath] = useState('');
   const [scannedFiles, setScannedFiles] = useState([]);
@@ -395,7 +403,8 @@ export default function AdminUpload() {
             <button type="submit" className="bg-yellow-600 p-2 rounded font-bold hover:bg-yellow-700">Upload Episode</button>
           </form>
         </div>
-\n        {/* Create Media Box */}
+
+        {/* Create Media Box */}
         <div className="bg-gray-800 p-6 rounded-lg opacity-75 hover:opacity-100 transition-opacity">
           <h2 className="text-xl font-semibold mb-4">Manual Create (Empty Course)</h2>
           <form onSubmit={handleCreateMedia} className="flex flex-col gap-4">
