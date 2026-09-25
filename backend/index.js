@@ -302,6 +302,27 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+// Add Single Item by Server Path (no file copying)
+app.post('/api/media/:mediaId/add-item', authenticateToken, isAdmin, async (req, res) => {
+  const { title, type, videoPath, textContent } = req.body;
+  try {
+    const count = await prisma.mediaItem.count({ where: { mediaId: req.params.mediaId } });
+    const item = await prisma.mediaItem.create({
+      data: {
+        mediaId: req.params.mediaId,
+        title,
+        type: type || 'VIDEO',
+        videoPath: videoPath || null,
+        textContent: textContent || null,
+        order: count + 1
+      }
+    });
+    res.json(item);
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
+
 // Serve Uploaded Media (like cover images)
 app.use('/Data', express.static(path.join(__dirname, '..', 'Data')));
 

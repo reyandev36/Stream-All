@@ -22,8 +22,7 @@ export default function AdminUpload() {
   const [selectedMediaId, setSelectedMediaId] = useState('');
   const [itemTitle, setItemTitle] = useState('');
   const [itemType, setItemType] = useState('VIDEO');
-  const [videoFile, setVideoFile] = useState(null);
-  const [subtitleFile, setSubtitleFile] = useState(null);
+  const [videoPath, setVideoPath] = useState('');
   const [textContent, setTextContent] = useState('');
 
   // Bulk Import States
@@ -193,28 +192,21 @@ export default function AdminUpload() {
   };
 
 
-  const handleUploadItem = async (e) => {
+  const handleAddSingleItem = async (e) => {
     e.preventDefault();
-    if (!selectedMediaId) return alert("Select a Media first!");
+    if (!selectedMediaId) return alert("Select a Course first!");
     
-    const formData = new FormData();
-    formData.append('title', itemTitle);
-    formData.append('type', itemType);
-    if (itemType === 'VIDEO') {
-      if (videoFile) formData.append('video', videoFile);
-      if (subtitleFile) formData.append('subtitle', subtitleFile);
-    } else {
-      formData.append('textContent', textContent);
-    }
-
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/media/${selectedMediaId}/items`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      await axios.post(`${import.meta.env.VITE_API_URL || ''}/api/media/${selectedMediaId}/add-item`, {
+        title: itemTitle,
+        type: itemType,
+        videoPath: videoPath,
+        textContent: textContent
       });
-      alert('Upload successful!');
-      setItemTitle(''); setVideoFile(null); setSubtitleFile(null); setTextContent('');
-      fetchEditItems(editMediaId); // refresh episodes if editing
-    } catch (err) { alert('Upload failed'); }
+      alert('Episode added!');
+      setItemTitle(''); setVideoPath(''); setTextContent('');
+      fetchEditItems(editMediaId);
+    } catch (err) { alert('Failed to add episode'); }
   };
 
   const handleDeleteEpisode = async (itemId) => {
@@ -356,10 +348,11 @@ export default function AdminUpload() {
 
 
         
-        {/* Upload Item Box */}
+        {/* Add Single Episode Box */}
         <div className="bg-gray-800 p-6 rounded-lg border border-yellow-500">
-          <h2 className="text-xl font-semibold mb-4 text-yellow-400">Manual Upload (Single Episode)</h2>
-          <form onSubmit={handleUploadItem} className="flex flex-col gap-4">
+          <h2 className="text-xl font-semibold mb-4 text-yellow-400">Add Single Episode</h2>
+          <p className="text-sm text-gray-400 mb-4">Add a single video by entering its path on the Server PC. No copying — it streams directly from where it is.</p>
+          <form onSubmit={handleAddSingleItem} className="flex flex-col gap-4">
             <select 
               value={selectedMediaId} onChange={e => setSelectedMediaId(e.target.value)}
               className="p-2 bg-gray-700 rounded"
@@ -382,16 +375,14 @@ export default function AdminUpload() {
             </select>
 
             {itemType === 'VIDEO' ? (
-              <>
-                <div className="border border-dashed border-gray-600 p-4 rounded">
-                  <label className="block mb-2 text-sm text-gray-400">Video File (MP4/MKV)</label>
-                  <input type="file" accept="video/*" onChange={e => setVideoFile(e.target.files[0])} />
-                </div>
-                <div className="border border-dashed border-gray-600 p-4 rounded">
-                  <label className="block mb-2 text-sm text-gray-400">Subtitle File (.srt / .vtt) - Optional</label>
-                  <input type="file" accept=".srt,.vtt" onChange={e => setSubtitleFile(e.target.files[0])} />
-                </div>
-              </>
+              <div className="border border-dashed border-gray-600 p-4 rounded">
+                <label className="block mb-2 text-sm text-gray-400">Video File Path on Server PC</label>
+                <input 
+                  type="text" placeholder="e.g. C:\Videos\lesson1.mp4"
+                  className="p-2 bg-gray-700 rounded w-full font-mono" 
+                  value={videoPath} onChange={e => setVideoPath(e.target.value)}
+                />
+              </div>
             ) : (
               <textarea 
                 placeholder="Enter text lesson content..."
@@ -400,7 +391,7 @@ export default function AdminUpload() {
               />
             )}
 
-            <button type="submit" className="bg-yellow-600 p-2 rounded font-bold hover:bg-yellow-700">Upload Episode</button>
+            <button type="submit" className="bg-yellow-600 p-2 rounded font-bold hover:bg-yellow-700">Add Episode</button>
           </form>
         </div>
 
