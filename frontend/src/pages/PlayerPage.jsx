@@ -108,41 +108,53 @@ export default function PlayerPage() {
         <div className="w-20"></div>
       </div>
 
-      {/* Video Player */}
+      {/* Main Content Area (Video or Text) */}
       <div className="flex-1 flex items-center justify-center bg-black px-4 py-4">
         <div className="w-full max-w-7xl rounded-lg overflow-hidden shadow-2xl border border-gray-800">
-          <video 
-            ref={videoRef}
-            className="w-full aspect-video bg-black"
-            controls
-            autoPlay
-            onTimeUpdate={handleTimeUpdate}
-            onEnded={handleVideoEnded}
-            onLoadedMetadata={() => {
-              if (videoRef.current && progress > 0) {
-                videoRef.current.currentTime = progress;
-              }
-            }}
-            crossOrigin="anonymous"
-          >
-            <source 
-              src={`${import.meta.env.VITE_API_URL || ''}/api/stream/${id}?token=${localStorage.getItem('token')}`} 
-              type="video/mp4" 
-            />
-            <track 
-              label="English" 
-              kind="subtitles" 
-              srcLang="en" 
-              src={`${import.meta.env.VITE_API_URL || ''}/api/subtitles/${id}?token=${localStorage.getItem('token')}`} 
-              default 
-            />
-            Your browser does not support the video tag.
-          </video>
+          
+          {(!currentItem || currentItem.type === 'VIDEO') ? (
+            <video 
+              key={id} /* Forces re-mount when URL ID changes */
+              ref={videoRef}
+              className="w-full aspect-video bg-black"
+              controls
+              autoPlay
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleVideoEnded}
+              onLoadedMetadata={() => {
+                if (videoRef.current && progress > 0) {
+                  videoRef.current.currentTime = progress;
+                }
+              }}
+              crossOrigin="anonymous"
+            >
+              <source 
+                src={`${import.meta.env.VITE_API_URL || ''}/api/stream/${id}?token=${localStorage.getItem('token')}`} 
+                type="video/mp4" 
+              />
+              <track 
+                label="English" 
+                kind="subtitles" 
+                srcLang="en" 
+                src={`${import.meta.env.VITE_API_URL || ''}/api/subtitles/${id}?token=${localStorage.getItem('token')}`} 
+                default 
+              />
+              Your browser does not support the video tag.
+            </video>
+          ) : (
+            <div className="w-full min-h-[50vh] bg-gray-900 p-12 flex flex-col items-center justify-center text-center">
+              <h2 className="text-3xl font-bold text-yellow-400 mb-6">{currentItem.title}</h2>
+              <div className="text-gray-300 whitespace-pre-wrap leading-relaxed max-w-3xl text-lg">
+                {currentItem.textContent || "No content provided."}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
-      {/* Lesson Notes */}
-      {currentItem && currentItem.textContent && (
+      {/* Lesson Notes (Only show if it's a video that ALSO has notes attached) */}
+      {currentItem && currentItem.type === 'VIDEO' && currentItem.textContent && (
         <div className="w-full max-w-7xl mx-auto px-6 py-4">
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-6">
             <h3 className="text-lg font-bold text-yellow-400 mb-3">📝 Lesson Notes</h3>
