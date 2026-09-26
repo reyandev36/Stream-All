@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -372,6 +372,7 @@ app.post('/api/scan', authenticateToken, isAdmin, async (req, res) => {
     const allFiles = collectAllFiles(folderPath);
     const folderTree = buildFolderTree(folderPath);
     let coverImagePath = null;
+    let aiErrorMsg = null;
 
     // Detect cover image at root
     const rootFiles = fs.readdirSync(folderPath);
@@ -403,10 +404,10 @@ Return ONLY valid JSON in this exact format, nothing else:
       "sectionName": "Human readable section name",
       "items": [
         {
-          "filename": "exact original filename with extension",
+          "filename": "EXACT original filename of the video from the tree (including extension, do not alter this!)",
           "title": "Clean human-readable title",
-          "notesFilename": "matching notes file name or null",
-          "subtitleFilename": "matching subtitle filename or null"
+          "notesFilename": "EXACT notes filename or null",
+          "subtitleFilename": "EXACT subtitle filename or null"
         }
       ]
     }
@@ -424,14 +425,18 @@ ${folderTree}`;
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
+            model: 'llama-3.1-70b-versatile',
             messages: [{ role: 'user', content: prompt }],
             temperature: 0.1,
-            max_tokens: 4096
+            max_tokens: 4096,
+            response_format: { type: 'json_object' }
           })
         });
 
         const data = await response.json();
+        if (data.error) {
+          throw new Error('Groq API Error: ' + JSON.stringify(data.error));
+        }
         const aiText = data.choices[0].message.content;
         
         // Extract JSON from the response (handle markdown code blocks)
@@ -484,6 +489,7 @@ ${folderTree}`;
         return res.json({ sections, coverImagePath, aiPowered: true });
       } catch (aiErr) {
         console.error('AI parsing failed, falling back to heuristic:', aiErr.message);
+        aiErrorMsg = aiErr.message;
         // Fall through to heuristic parsing below
       }
     }
@@ -540,7 +546,7 @@ ${folderTree}`;
       if (items.length > 0) sections.push({ sectionName: 'All Episodes', folderName: '', items });
     }
 
-    res.json({ sections, coverImagePath, aiPowered: false });
+    res.json({ sections, coverImagePath, aiPowered: false, aiError: aiErrorMsg });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
