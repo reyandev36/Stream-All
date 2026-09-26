@@ -141,6 +141,16 @@ export default function PlayerPage() {
         </div>
       </div>
 
+      {/* Lesson Notes */}
+      {currentItem && currentItem.textContent && (
+        <div className="w-full max-w-7xl mx-auto px-6 py-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6">
+            <h3 className="text-lg font-bold text-yellow-400 mb-3">📝 Lesson Notes</h3>
+            <div className="text-gray-300 whitespace-pre-wrap leading-relaxed">{currentItem.textContent}</div>
+          </div>
+        </div>
+      )}
+
       {/* Previous / Next Bar */}
       <div className="flex items-center justify-between px-6 py-4 bg-gray-900 border-t border-gray-800">
         {prevItem ? (

@@ -327,26 +327,41 @@ app.post('/api/media/:mediaId/add-item', authenticateToken, isAdmin, async (req,
 app.use('/Data', express.static(path.join(__dirname, '..', 'Data')));
 
 
-// --- BULK IMPORT SYSTEM ---
+// --- AI-POWERED SMART SCANNER ---
 
-// Helper to recursively read directories
-const getAllVideoFiles = (dirPath, arrayOfFiles) => {
-  const files = fs.readdirSync(dirPath);
-  arrayOfFiles = arrayOfFiles || [];
-  files.forEach(function(file) {
-    const fullPath = path.join(dirPath, file);
-    if (fs.statSync(fullPath).isDirectory()) {
-      arrayOfFiles = getAllVideoFiles(fullPath, arrayOfFiles);
+// Recursively build a folder tree as a text string for the AI
+const buildFolderTree = (dirPath, prefix = '') => {
+  let tree = '';
+  const entries = fs.readdirSync(dirPath).sort();
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry);
+    const stat = fs.statSync(fullPath);
+    if (stat.isDirectory()) {
+      tree += prefix + '📁 ' + entry + '/\n';
+      tree += buildFolderTree(fullPath, prefix + '  ');
     } else {
-      if (file.match(/\.(mp4|mkv|webm|avi)$/i)) {
-        arrayOfFiles.push(fullPath);
-      }
+      tree += prefix + '📄 ' + entry + '\n';
     }
-  });
-  return arrayOfFiles;
+  }
+  return tree;
 };
 
-// Scan Folder Route
+// Recursively collect ALL files with their full paths
+const collectAllFiles = (dirPath) => {
+  const results = [];
+  const entries = fs.readdirSync(dirPath).sort();
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry);
+    if (fs.statSync(fullPath).isDirectory()) {
+      results.push(...collectAllFiles(fullPath));
+    } else {
+      results.push({ filename: entry, filepath: fullPath, relativePath: path.relative(dirPath, fullPath) });
+    }
+  }
+  return results;
+};
+
+// Scan Folder Route (AI-powered)
 app.post('/api/scan', authenticateToken, isAdmin, async (req, res) => {
   const { folderPath } = req.body;
   if (!fs.existsSync(folderPath)) {
@@ -354,59 +369,221 @@ app.post('/api/scan', authenticateToken, isAdmin, async (req, res) => {
   }
 
   try {
-    const files = getAllVideoFiles(folderPath, []);
-    
-    // Parse files to guess episode numbers
-    const parsedFiles = files.map(filepath => {
-      const filename = path.basename(filepath);
-      
-      // Look for numbers like 001, E01, S01E01, or just 1
-      let guessedNumber = 0;
-      const numMatch = filename.match(/(?:[eExX]|^|\s|0*|-)(\d{1,4})(?:\D|$)/);
-      if (numMatch) {
-        guessedNumber = parseInt(numMatch[1], 10);
+    const allFiles = collectAllFiles(folderPath);
+    const folderTree = buildFolderTree(folderPath);
+    let coverImagePath = null;
+
+    // Detect cover image at root
+    const rootFiles = fs.readdirSync(folderPath);
+    for (const f of rootFiles) {
+      if (f.match(/cover\.(jpg|jpeg|png|webp)$/i)) {
+        coverImagePath = path.join(folderPath, f);
       }
-      
-      return {
-        filepath: filepath,
-        filename: filename,
-        guessedNumber: guessedNumber,
-        title: filename.replace(/\.[^/.]+$/, "") // remove extension
-      };
-    });
+    }
 
-    // Sort by guessed number
-    parsedFiles.sort((a, b) => a.guessedNumber - b.guessedNumber);
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-    res.json(parsedFiles);
+    if (GROQ_API_KEY) {
+      // === AI-POWERED PARSING ===
+      const prompt = `You are a course/media folder structure analyzer. I will give you a folder tree of a course or media collection. Your job is to organize the files into logical sections and episodes.
+
+Rules:
+- Only include video files (.mp4, .mkv, .webm, .avi) as episodes
+- If a .txt, .md, or .html file has the same base name as a video, it is the "notes" for that video
+- If a .srt or .vtt file has the same base name as a video, it is the "subtitle" for that video
+- Ignore image files, they are covers
+- Group videos into logical sections based on the folder structure
+- Clean up episode titles: remove numbering prefixes like "001", "01 -", etc. Make them human readable
+- Order episodes logically (by their numbering in the filename)
+
+Return ONLY valid JSON in this exact format, nothing else:
+{
+  "sections": [
+    {
+      "sectionName": "Human readable section name",
+      "items": [
+        {
+          "filename": "exact original filename with extension",
+          "title": "Clean human-readable title",
+          "notesFilename": "matching notes file name or null",
+          "subtitleFilename": "matching subtitle filename or null"
+        }
+      ]
+    }
+  ]
+}
+
+Here is the folder tree:
+${folderTree}`;
+
+      try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + GROQ_API_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.1,
+            max_tokens: 4096
+          })
+        });
+
+        const data = await response.json();
+        const aiText = data.choices[0].message.content;
+        
+        // Extract JSON from the response (handle markdown code blocks)
+        let jsonStr = aiText;
+        const jsonMatch = aiText.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) jsonStr = jsonMatch[1];
+        
+        const aiResult = JSON.parse(jsonStr.trim());
+        
+        // Map AI results back to actual file paths
+        let globalOrder = 1;
+        const sections = [];
+        
+        for (const aiSection of aiResult.sections) {
+          const items = [];
+          for (const aiItem of aiSection.items) {
+            // Find the actual file by matching filename
+            const fileEntry = allFiles.find(f => f.filename === aiItem.filename);
+            if (!fileEntry) continue;
+
+            let notes = '';
+            let subtitlePath = null;
+
+            if (aiItem.notesFilename) {
+              const notesEntry = allFiles.find(f => f.filename === aiItem.notesFilename);
+              if (notesEntry) {
+                try { notes = fs.readFileSync(notesEntry.filepath, 'utf8'); } catch(e) {}
+              }
+            }
+
+            if (aiItem.subtitleFilename) {
+              const subEntry = allFiles.find(f => f.filename === aiItem.subtitleFilename);
+              if (subEntry) subtitlePath = subEntry.filepath;
+            }
+
+            items.push({
+              filepath: fileEntry.filepath,
+              filename: fileEntry.filename,
+              title: aiItem.title,
+              notes: notes,
+              subtitlePath: subtitlePath,
+              order: globalOrder++
+            });
+          }
+          if (items.length > 0) {
+            sections.push({ sectionName: aiSection.sectionName, folderName: '', items });
+          }
+        }
+
+        return res.json({ sections, coverImagePath, aiPowered: true });
+      } catch (aiErr) {
+        console.error('AI parsing failed, falling back to heuristic:', aiErr.message);
+        // Fall through to heuristic parsing below
+      }
+    }
+
+    // === HEURISTIC FALLBACK (no API key or AI failed) ===
+    const entries = fs.readdirSync(folderPath).sort();
+    const sections = [];
+    let globalOrder = 1;
+
+    for (const entry of entries) {
+      const fullPath = path.join(folderPath, entry);
+      if (!fs.statSync(fullPath).isDirectory()) continue;
+
+      const sectionName = entry.replace(/^\d+\s*[-.]?\s*/, '').trim() || entry;
+      const sectionFiles = fs.readdirSync(fullPath).sort();
+      const fileMap = {};
+      for (const file of sectionFiles) {
+        const ext = path.extname(file).toLowerCase();
+        const baseName = path.basename(file, path.extname(file));
+        if (!fileMap[baseName]) fileMap[baseName] = {};
+        const fileFull = path.join(fullPath, file);
+        if (ext.match(/\.(mp4|mkv|webm|avi)$/)) { fileMap[baseName].video = fileFull; fileMap[baseName].filename = file; }
+        else if (ext.match(/\.(txt|md|html)$/)) { try { fileMap[baseName].notes = fs.readFileSync(fileFull, 'utf8'); } catch(e){} }
+        else if (ext.match(/\.(srt|vtt)$/)) { fileMap[baseName].subtitle = fileFull; }
+      }
+      const items = [];
+      for (const baseName of Object.keys(fileMap).sort()) {
+        const g = fileMap[baseName];
+        if (!g.video) continue;
+        items.push({ filepath: g.video, filename: g.filename, title: baseName.replace(/^\d+\s*[-.]?\s*/, '').replace(/_/g, ' ').trim() || baseName, notes: g.notes || '', subtitlePath: g.subtitle || null, order: globalOrder++ });
+      }
+      if (items.length > 0) sections.push({ sectionName, folderName: entry, items });
+    }
+
+    // Flat folder fallback
+    if (sections.length === 0) {
+      const fileMap = {};
+      for (const entry of entries) {
+        const fullPath = path.join(folderPath, entry);
+        if (fs.statSync(fullPath).isDirectory()) continue;
+        const ext = path.extname(entry).toLowerCase();
+        const baseName = path.basename(entry, path.extname(entry));
+        if (!fileMap[baseName]) fileMap[baseName] = {};
+        if (ext.match(/\.(mp4|mkv|webm|avi)$/)) { fileMap[baseName].video = fullPath; fileMap[baseName].filename = entry; }
+        else if (ext.match(/\.(txt|md|html)$/)) { try { fileMap[baseName].notes = fs.readFileSync(fullPath, 'utf8'); } catch(e){} }
+        else if (ext.match(/\.(srt|vtt)$/)) { fileMap[baseName].subtitle = fullPath; }
+      }
+      const items = [];
+      for (const baseName of Object.keys(fileMap).sort()) {
+        const g = fileMap[baseName];
+        if (!g.video) continue;
+        items.push({ filepath: g.video, filename: g.filename, title: baseName.replace(/^\d+\s*[-.]?\s*/, '').replace(/_/g, ' ').trim() || baseName, notes: g.notes || '', subtitlePath: g.subtitle || null, order: globalOrder++ });
+      }
+      if (items.length > 0) sections.push({ sectionName: 'All Episodes', folderName: '', items });
+    }
+
+    res.json({ sections, coverImagePath, aiPowered: false });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Bulk Import Route
+// Bulk Import Route (section-aware)
 app.post('/api/bulk-import', authenticateToken, isAdmin, async (req, res) => {
-  const { categoryId, mediaTitle, mediaDescription, items } = req.body;
+  const { categoryId, mediaTitle, mediaDescription, coverImagePath, items } = req.body;
   
   try {
-    // 1. Create the Course/Media
+    // Handle cover image
+    let coverImage = null;
+    if (coverImagePath && fs.existsSync(coverImagePath)) {
+      coverImage = path.relative(path.join(__dirname, '..'), coverImagePath).replace(/\\/g, '/');
+      // Copy cover image to Data folder so it's served properly
+      const destDir = path.join(__dirname, '..', 'Data', 'covers');
+      if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+      const destFile = path.join(destDir, Date.now() + '-' + path.basename(coverImagePath));
+      fs.copyFileSync(coverImagePath, destFile);
+      coverImage = path.relative(path.join(__dirname, '..'), destFile).replace(/\\/g, '/');
+    }
+
+    // Create the Course/Media
     const media = await prisma.media.create({
       data: { 
         title: mediaTitle, 
         description: mediaDescription, 
-        categoryId: categoryId 
+        categoryId: categoryId,
+        coverImage: coverImage
       }
     });
 
-    // 2. Create all the Episodes inside it (using absolute paths!)
+    // Create all the Episodes
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       await prisma.mediaItem.create({
         data: {
           mediaId: media.id,
           title: item.title,
-          type: 'VIDEO',
-          videoPath: item.filepath,
+          type: item.type || 'VIDEO',
+          videoPath: item.filepath || null,
+          subtitlePath: item.subtitlePath || null,
+          textContent: item.notes || null,
           order: item.order || i + 1
         }
       });
